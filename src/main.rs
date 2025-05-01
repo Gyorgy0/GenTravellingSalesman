@@ -17,11 +17,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Travelling Salesman Problem",
         native_options,
-        Box::new(|cc| {
-            Ok(Box::new(
-                GenTravellingSalesman::GenTravellingSalesmanApp::new(cc),
-            ))
-        }),
+        Box::new(|cc| Ok(Box::new(GenTravellingSalesman::GenTravellingSalesmanApp::new(cc)))),
     )
 }
 
@@ -29,7 +25,7 @@ fn main() -> eframe::Result {
 #[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast as _;
-    use ImageSegmentation::GenTravellingSalesmanApp;
+    use GenTravellingSalesman::GenTravellingSalesmanApp;
 
     // Redirect `log` message to `console.log` and friends:
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
@@ -52,11 +48,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| {
-                    Ok(Box::new(
-                        GenTravellingSalesman::GenTravellingSalesmanApp::new(cc),
-                    ))
-                }),
+                Box::new(|cc| Ok(Box::new(GenTravellingSalesman::GenTravellingSalesmanApp::new(cc)))),
             )
             .await;
 
