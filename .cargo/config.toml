@@ -1,0 +1,11 @@
+[target.x86_64-unknown-linux-musl]
+linker = "rust-lld"
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+
+[target.armv7-linux-androideabi]
+linker = "rust-lld"
+
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", 'getrandom_backend="wasm_js"']
