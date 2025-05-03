@@ -17,7 +17,11 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Travelling Salesman Problem",
         native_options,
-        Box::new(|cc| Ok(Box::new(GenTravellingSalesman::GenTravellingSalesmanApp::new(cc)))),
+        Box::new(|cc| {
+            Ok(Box::new(
+                GenTravellingSalesman::GenTravellingSalesmanApp::new(cc),
+            ))
+        }),
     )
 }
 
@@ -48,7 +52,11 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(GenTravellingSalesman::GenTravellingSalesmanApp::new(cc)))),
+                Box::new(|cc| {
+                    Ok(Box::new(
+                        GenTravellingSalesman::GenTravellingSalesmanApp::new(cc),
+                    ))
+                }),
             )
             .await;
 
