@@ -1,5 +1,3 @@
-use std::{mem::replace, ops::DerefMut};
-
 use crate::app;
 use egui::{emath::OrderedFloat, Pos2};
 use itertools::Itertools;
@@ -95,7 +93,6 @@ pub fn select_parents(population: &mut Vec<Individual>) -> Vec<Individual> {
     let parents: Vec<Individual> = population
         .split_off((population.len() - 1) / 2_usize)
         .into_iter()
-        .map(|i| i.clone())
         .collect_vec();
     population.clone()
 }
@@ -106,7 +103,7 @@ pub fn make_children(
     mutation_chance: f32,
 ) -> Vec<Individual> {
     let mut population = parents.clone();
-    let mut children: Vec<Individual> = vec![];
+    let children: Vec<Individual> = vec![];
     while population.len() < population_number {
         let first_parent_index = rand::random_range(0..parents.len());
         let mut second_parent_index = rand::random_range(0..parents.len());
@@ -172,7 +169,6 @@ pub fn genetic_search(
         .clone()
         .into_iter()
         .sorted_by_key(|f| f.travelled_distance)
-        .map(|individual| individual)
         .collect_vec();
     while best_each_gen.is_empty()
         || (best_each_gen.last().unwrap().travelled_distance.0
@@ -186,7 +182,6 @@ pub fn genetic_search(
             .clone()
             .into_iter()
             .sorted_by_key(|f| f.travelled_distance)
-            .map(|individual| individual)
             .collect_vec();
         /*for i in 0..population.len() {
             println!("{}. szülő: {:?}", i + 1, population[i].travelled_towns);

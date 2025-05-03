@@ -1,15 +1,7 @@
-use std::{collections::HashMap, f32, fmt::format};
+use std::f32;
 
-use egui::{
-    accesskit::{Point, Size},
-    emath::OrderedFloat,
-    response,
-    util::hash,
-    Align2, Color32, Id, Pos2, Rect, Response, RichText, Stroke, Vec2, Widget,
-};
-use egui_plot::{Arrows, Legend, PlotGeometry, PlotPoint, PlotPoints, Points, Text};
-use env_logger::fmt::style::{Color, RgbColor, Style};
-use serde::{Deserialize, Serialize};
+use egui::{emath::OrderedFloat, Align2, Pos2, RichText, Widget};
+use egui_plot::{Arrows, PlotPoint, PlotPoints, Points, Text};
 
 use crate::simulation::{generate_population, generate_towns, genetic_search};
 
@@ -74,10 +66,7 @@ pub struct Town {
 
 impl Town {
     pub fn new(name: String, position: Pos2) -> Self {
-        Self {
-            name: name,
-            position: position,
-        }
+        Self { name, position }
     }
 }
 
@@ -142,6 +131,8 @@ impl eframe::App for GenTravellingSalesmanApp {
                     });
                     if ui.button("Generate").clicked() {
                         self.towns.clear();
+                        self.best_from_each_gen.clear();
+                    self.selected_individual = Option::None;
                         self.towns = generate_towns(self.town_min_dist, self.town_max_dist, self.n_o_towns);
                     }
                 });
@@ -165,11 +156,11 @@ impl eframe::App for GenTravellingSalesmanApp {
                 let empty_warn_popup = ui.make_persistent_id("no_towns");
             let start_button =  ui.button("Start");
                 if start_button.clicked() && !self.towns.is_empty(){
-                    self.best_from_each_gen = vec![];
+                    self.best_from_each_gen.clear();
                     self.selected_individual = Option::None;
-                        self.evolution_started = true;
-                        self.population = generate_population(&self.towns, self.population_number);
-                        genetic_search( &mut self.population,&mut self.best_from_each_gen, self.mutation_chance, /*self.min_improvement,*/ self.population_number,&mut self.evolution_started);
+                    self.evolution_started = true;
+                    self.population = generate_population(&self.towns, self.population_number);
+                    genetic_search( &mut self.population,&mut self.best_from_each_gen, self.mutation_chance, /*self.min_improvement,*/ self.population_number,&mut self.evolution_started);
                 }
                 else if start_button.clicked() && self.towns.is_empty() {
                     ui.memory_mut(|mem| mem.toggle_popup(empty_warn_popup))
@@ -192,7 +183,7 @@ impl eframe::App for GenTravellingSalesmanApp {
                         });
                         let mut path = String::new();
                         for j in 0..self.best_from_each_gen[i].travelled_towns.len() {
-                            path += &format!("{}", self.best_from_each_gen[i].travelled_towns[j].name);
+                            path += &self.best_from_each_gen[i].travelled_towns[j].name.to_string();
                             if (j+1) != self.best_from_each_gen[i].travelled_towns.len() {
                                 path += " => "
                             }
