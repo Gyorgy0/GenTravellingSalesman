@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{mem::replace, ops::DerefMut};
 
 use crate::app;
 use egui::{emath::OrderedFloat, Pos2};
@@ -58,24 +58,13 @@ pub fn generate_towns(town_min_dist: f32, town_max_dist: f32, n_o_towns: usize) 
     towns
 }
 
-pub fn genetic_search(
-    towns: &Vec<Town>,
-    population: &mut Vec<Individual>,
-    mutation_chance: f32,
-    min_improvement: f32,
-    evolution_started: &mut bool,
-) {
-
-}
-
 pub fn generate_population(towns: &Vec<Town>, population_number: usize) -> Vec<Individual> {
     let mut population: Vec<Individual> = vec![];
-    let mut individual: Individual = Individual {
-        travelled_towns: vec![],
-        travelled_distance: OrderedFloat::from(0_f32),
-        actual_town: String::new(),
-    };
     for i in 0..population_number {
+        let mut individual: Individual = Individual {
+            travelled_towns: vec![],
+            travelled_distance: OrderedFloat::from(0_f32),
+        };
         let mut remaining_towns = towns.clone();
         for j in 0..towns.len() {
             let rnd_index = rand::random_range(0..remaining_towns.len());
@@ -86,28 +75,38 @@ pub fn generate_population(towns: &Vec<Town>, population_number: usize) -> Vec<I
         }
         individual.travelled_distance = calculate_travelled_distance(&individual.travelled_towns);
         population.push(individual.clone());
+        // Which towns were visited + travelled distance
+        // Mely városok voltak meglátogatvas + megtett távolság
+        /*println!(
+            "{}. út: {:?}",
+            i + 1,
+            individual.clone().travelled_towns.clone()
+        );
+        println!(
+            "{}. úthossz: {:?}",
+            i + 1,
+            individual.travelled_distance.0.clone()
+        );*/
     }
-    // Which towns were visited + travelled distance
-    // Mely városok voltak meglátogatvas + megtett távolság
-    // println!("{:?}", individual.travelled_towns.clone());
-    // println!("{:?}", individual.travelled_distance.0.clone());
     population
 }
 
-pub fn select_parents(population: &mut Vec<Individual>) -> Vec<&mut Individual> {
-    let mut ranked_individuals = population
+pub fn select_parents(population: &mut Vec<Individual>) -> Vec<Individual> {
+    let parents: Vec<Individual> = population
+        .split_off((population.len() - 1) / 2_usize)
         .into_iter()
-        .sorted_by_key(|f| f.travelled_distance)
-        .map(|individual| individual)
+        .map(|i| i.clone())
         .collect_vec();
-    let parents:Vec<&mut Individual> = ranked_individuals.split_off(ranked_individuals.len()/2_usize);
-    parents
-
+    population.clone()
 }
 
-pub fn make_children(parents: Vec<Individual>, population_number: usize) -> Vec<Individual> {
+pub fn make_children(
+    parents: Vec<Individual>,
+    population_number: usize,
+    mutation_chance: f32,
+) -> Vec<Individual> {
     let mut population = parents.clone();
-    let mut children:Vec<Individual> = vec![];
+    let mut children: Vec<Individual> = vec![];
     while population.len() < population_number {
         let first_parent_index = rand::random_range(0..parents.len());
         let mut second_parent_index = rand::random_range(0..parents.len());
@@ -115,14 +114,88 @@ pub fn make_children(parents: Vec<Individual>, population_number: usize) -> Vec<
             second_parent_index = rand::random_range(0..parents.len());
         }
         let cross_over_start: usize = rand::random_range(0..parents[0].travelled_towns.len());
-        let cross_over_end:usize = rand::random_range(cross_over_start..parents[0].travelled_towns.len());
-        let mut new_path:Vec<Town> = vec![];
+        let cross_over_end: usize =
+            rand::random_range(cross_over_start..parents[0].travelled_towns.len());
+        let mut new_path: Vec<Town> = vec![];
         for i in 0..parents[0].travelled_towns.len() {
             new_path.push(parents[first_parent_index].travelled_towns[i].clone());
         }
         for i in cross_over_start..cross_over_end {
-            new_path[parents[first_parent_index].travelled_towns.iter().find_position(|gene| gene == format!("{}.", i+1))]
+            let actual_gene = population[second_parent_index]
+                .travelled_towns
+                .iter()
+                .find_position(|gene| gene.name == format!("{}.", i + 1))
+                .unwrap();
+            let parent_gene = population[first_parent_index]
+                .travelled_towns
+                .iter()
+                .find_position(|gene| gene.name == format!("{}.", i + 1))
+                .unwrap();
+            new_path.swap(actual_gene.0, parent_gene.0);
         }
+        let children: Individual = Individual {
+            travelled_towns: new_path.clone(),
+            travelled_distance: calculate_travelled_distance(&new_path),
+        };
+        for i in 0..population.len() {
+            // Random mutation
+            // Véletlenszerű mutáció
+            if mutation_chance < rand::random_range(0_f32..=1_f32) {
+                let rnd_gene = rand::random_range(0..parents[0].travelled_towns.len());
+                new_path.swap(
+                    rnd_gene,
+                    rand::random_range(rnd_gene..parents[0].travelled_towns.len()),
+                );
+            }
+            population[i].travelled_distance =
+                calculate_travelled_distance(&population[i].travelled_towns);
+        }
+        // Which towns were visited + travelled distance
+        // Mely városok voltak meglátogatvas + megtett távolság
+        //println!("Új gyerek: {:?}", children.travelled_towns.clone());
+        population.push(children);
     }
     population
+}
+
+pub fn genetic_search(
+    population: &mut Vec<Individual>,
+    best_each_gen: &mut Vec<Individual>,
+    mutation_chance: f32,
+    //min_improvement: f32,
+    population_number: usize,
+    evolution_started: &mut bool,
+) {
+    // Ranking the individuals from best to worst (shorter path -> good)
+    // Sorrendbe helyezzük a populáció tagjait (minnél rövidebb út, annál jobb)
+    let mut ranked_population = population
+        .clone()
+        .into_iter()
+        .sorted_by_key(|f| f.travelled_distance)
+        .map(|individual| individual)
+        .collect_vec();
+    while best_each_gen.is_empty()
+        || (best_each_gen.last().unwrap().travelled_distance.0
+            - ranked_population.first().unwrap().travelled_distance.0)
+            != 0.0
+    {
+        best_each_gen.push(ranked_population.last().unwrap().clone());
+        let parents = select_parents(&mut ranked_population.clone());
+        *population = make_children(parents, population_number, mutation_chance).clone();
+        ranked_population = population
+            .clone()
+            .into_iter()
+            .sorted_by_key(|f| f.travelled_distance)
+            .map(|individual| individual)
+            .collect_vec();
+        /*for i in 0..population.len() {
+            println!("{}. szülő: {:?}", i + 1, population[i].travelled_towns);
+            println!(
+                "{}. szülőhossz: {}",
+                i + 1,
+                population[i].travelled_distance.0
+            );
+        }*/
+    }
+    *evolution_started = false;
 }

@@ -36,7 +36,7 @@ pub struct GenTravellingSalesmanApp {
     #[serde(skip)]
     selected_individual: Option<Individual>,
     mutation_chance: f32,
-    min_improvement: f32,
+    //min_improvement: f32,
 }
 
 impl Default for GenTravellingSalesmanApp {
@@ -55,7 +55,7 @@ impl Default for GenTravellingSalesmanApp {
             best_from_each_gen: vec![],
             selected_individual: Option::None,
             mutation_chance: 0.02,
-            min_improvement: 0.05,
+            //min_improvement: 0.05,
         }
     }
 }
@@ -64,7 +64,6 @@ impl Default for GenTravellingSalesmanApp {
 pub struct Individual {
     pub travelled_towns: Vec<Town>,
     pub travelled_distance: OrderedFloat<f32>,
-    pub actual_town: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -156,19 +155,21 @@ impl eframe::App for GenTravellingSalesmanApp {
                 ui.label("Mutation chance (mutáció esélye):");
                 egui::widgets::Slider::new(&mut self.mutation_chance, 0_f32..=1_f32)
                     .ui(ui);
-                ui.separator();
+                /*ui.separator();
                 ui.label("Stopping condition (megállási feltétel):");
                 ui.separator();
                 ui.label("Improvement margin (javulási küszöb):");
                 egui::widgets::Slider::new(&mut self.min_improvement, 0_f32..=1_f32)
-                    .ui(ui);
+                    .ui(ui);*/
                 ui.separator();
                 let empty_warn_popup = ui.make_persistent_id("no_towns");
             let start_button =  ui.button("Start");
                 if start_button.clicked() && !self.towns.is_empty(){
+                    self.best_from_each_gen = vec![];
+                    self.selected_individual = Option::None;
                         self.evolution_started = true;
                         self.population = generate_population(&self.towns, self.population_number);
-                        genetic_search(&self.towns, &mut self.population, self.mutation_chance, self.min_improvement, &mut self.evolution_started);
+                        genetic_search( &mut self.population,&mut self.best_from_each_gen, self.mutation_chance, /*self.min_improvement,*/ self.population_number,&mut self.evolution_started);
                 }
                 else if start_button.clicked() && self.towns.is_empty() {
                     ui.memory_mut(|mem| mem.toggle_popup(empty_warn_popup))
@@ -179,6 +180,28 @@ impl eframe::App for GenTravellingSalesmanApp {
                     ui.label("Ki kell generálnod a városokat először!");});
                 });
             });
+            if !self.evolution_started && !self.best_from_each_gen.is_empty() {
+                egui::Window::new("Best of each generation (minden generáció legjobbja)").show(ctx, |ui| {
+                    egui::ScrollArea::both().max_width(f32::INFINITY).show(ui, |ui| {
+                        for i in 0..self.best_from_each_gen.len() {
+                        ui.horizontal(|ui|{
+                            if ui.button(format!("{}. gen", i+1)).clicked() {
+                                self.selected_individual = Option::Some(self.best_from_each_gen[i].clone());
+                            }
+                            ui.label(format!("Length (hossz): {}", self.best_from_each_gen[i].travelled_distance.0));
+                        });
+                        let mut path = String::new();
+                        for j in 0..self.best_from_each_gen[i].travelled_towns.len() {
+                            path += &format!("{}", self.best_from_each_gen[i].travelled_towns[j].name);
+                            if (j+1) != self.best_from_each_gen[i].travelled_towns.len() {
+                                path += " => "
+                            }
+                        }
+                        ui.label(format!("Path (megtett út): {}", path));
+                    }
+                    });
+                });
+            }
             egui_plot::Plot::new("")
                 .allow_drag(true)
                 .show_grid(false)
@@ -202,14 +225,19 @@ impl eframe::App for GenTravellingSalesmanApp {
                                 .radius(2.0),
                         );
                     }
-                    /*plot_ui.arrows(
-                        Arrows::new(
-                            "",
-                            PlotPoints::new(vec![[0_f64, 0_f64]]),
-                            PlotPoints::new(vec![[1_f64, 5_f64]]),
-                        )
-                        .tip_length(30.0),
-                    );*/
+                    if self.selected_individual.is_some() {
+                        for i in 0..self.selected_individual.clone().unwrap().travelled_towns.len() {
+                            let towns = self.selected_individual.clone().unwrap().travelled_towns;
+                            plot_ui.arrows(
+                                Arrows::new(
+                                    "",
+                                    PlotPoints::new(vec![[towns[i].position.x as f64, towns[i].position.y as f64]]),
+                                    PlotPoints::new(vec![[towns[(i+1)%towns.len()].position.x as f64, towns[(i+1)%towns.len()].position.y as f64]]),
+                                )
+                                .tip_length(30.0),
+                            );
+                        }
+                    }
                 });
         });
     }
